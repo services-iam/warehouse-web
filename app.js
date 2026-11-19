@@ -837,7 +837,7 @@
 
   function buildHistory() {
     var H = S.hist;
-    var listEl = h('div', { class: 'items' });
+    var listEl = h('div', { class: 'items history' });
     var countEl = h('p', { class: 'result-count' });
 
     if (can('add')) {

@@ -278,3 +278,68 @@ main.has-bar { padding-bottom: calc(var(--nav-h) + 96px + env(safe-area-inset-bo
 @media (min-width: 700px) {
   main { padding-top: 20px; }
 }
+
+/* ---------- desktop (computer screens) ----------
+   Same markup as the phone layout. From 900px up the bottom menu becomes a side menu,
+   the material list becomes two columns (three on very wide screens), and dialogs
+   open in the middle of the screen instead of sliding up from the bottom. */
+
+@media (min-width: 900px) {
+  :root { --col: 1200px; --side-w: 210px; }
+
+  .shell {
+    display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); grid-template-rows: auto auto 1fr;
+    grid-template-areas: "demo demo" "top top" "nav main";
+    align-items: start; background: var(--bg);
+  }
+  .demo-strip { grid-area: demo; text-align: center; }
+  .topbar { grid-area: top; padding: 12px 28px; }
+  .who-name { max-width: 320px; }
+  .brand-name { font-size: 19px; }
+
+  .bottom-nav {
+    grid-area: nav; position: sticky; top: 64px; left: auto; transform: none; width: auto; max-width: none; z-index: 4;
+    flex-direction: column; gap: 4px; margin: 20px 0 0 20px; padding: 8px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .bottom-nav button {
+    min-height: 48px; padding: 0 14px; text-align: left; border: 0; border-left: 4px solid transparent; border-radius: 6px;
+  }
+  .bottom-nav button:hover { background: #F1F3F5; }
+  .bottom-nav button[aria-current="page"] { border-top-color: transparent; border-left-color: var(--ink); background: #E9ECEF; }
+
+  main, main.has-bar { grid-area: main; padding: 20px 28px 112px; max-width: 1040px; width: 100%; }
+  main:not(.has-bar) { padding-bottom: 40px; }
+
+  .jobcard { max-width: 640px; }
+  .seg { max-width: 420px; }
+  .chips { margin: 0; padding-left: 0; padding-right: 0; flex-wrap: wrap; overflow: visible; }
+  .search { max-width: 420px; }
+
+  .items { border: 0; background: transparent; overflow: visible; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .items .empty { grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  .row { background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--cat, var(--c-xx)); border-radius: 8px; }
+  .row:last-child { border-bottom: 1px solid var(--line); }
+  .row.out { background: #F1F3F5; }
+
+  /* history stays a single readable list */
+  .items.history { display: block; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; overflow: hidden; }
+
+  .cartbar { bottom: 20px; left: calc(50% + var(--side-w) / 2); width: min(640px, calc(100% - var(--side-w) - 56px)); max-width: none; }
+
+  .backdrop { align-items: center; padding: 24px; }
+  .sheet { max-width: 640px; max-height: calc(100dvh - 48px); border-radius: 16px; padding-bottom: 20px; animation: dialog-in .16s ease-out; }
+  @keyframes dialog-in { from { transform: scale(.97); opacity: .6; } to { transform: none; opacity: 1; } }
+
+  .login { padding-top: 96px; }
+}
+
+@media (min-width: 1280px) {
+  .items { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  main, main.has-bar { max-width: 1280px; }
+  :root { --col: 1480px; }
+}
+
+@media (min-width: 900px) and (prefers-reduced-motion: reduce) {
+  .sheet { animation: none; }
+}
