@@ -179,6 +179,21 @@
         case 'purchase':
           if (!who.info.permissions.add) return { ok: false, error: 'forbidden' };
           return submit(body.action, who, body);
+        case 'usage': {
+          // Invented monthly figures so the dashboard has something to show in demo mode.
+          var rowsOut = [];
+          var now = new Date();
+          for (var back = 0; back < 9; back++) {
+            var d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+            var month = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+            materials.forEach(function (m, idx) {
+              var n = (back * 7 + idx * 3 + (idx % 4) * back) % 5;
+              if (n === 0) return;
+              rowsOut.push({ month: month, code: m.code, category: categoryOf(m.code), name: m.name, unit: m.unit, qty: n * (1 + (idx % 3)), count: n });
+            });
+          }
+          return { ok: true, data: { rows: rowsOut, skipped: 0 } };
+        }
         case 'history': {
           var mine = body.mine !== false;
           if (!mine && !who.info.permissions.add) return { ok: false, error: 'forbidden' };

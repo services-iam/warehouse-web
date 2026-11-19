@@ -179,6 +179,7 @@
     addMode: 'transfer',
     carts: { withdraw: Cart.createCart(), transfer: Cart.createCart(), purchase: Cart.createCart() },
     prices: {},
+    dash: { rows: [], state: 'idle', skipped: 0, range: 6, cats: null, a: '', b: '' },
     hist: { items: [], state: 'idle', scope: 'mine', kind: 'เบิก', cat: 'all', q: '' },
     sending: false,
     onJobChange: null
@@ -305,7 +306,7 @@
 
   // Stock may have changed while the phone was in a pocket; refresh when the page comes back.
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible' && S.session && S.view !== 'history' && S.matsState !== 'loading' && !S.sending) loadMaterials();
+    if (document.visibilityState === 'visible' && S.session && S.view !== 'history' && S.view !== 'dashboard' && S.matsState !== 'loading' && !S.sending) loadMaterials();
   });
 
   function startApp(session) {
@@ -325,6 +326,7 @@
     var items = [];
     if (can('withdraw')) items.push(['withdraw', 'เบิก']);
     if (can('add')) items.push(['add', 'เพิ่ม/ซื้อ']);
+    items.push(['dashboard', 'สรุป']);
     items.push(['history', 'ประวัติ']);
     items.forEach(function (it) {
       nav.appendChild(h('button', { type: 'button', 'data-view': it[0], text: it[1], onclick: function () { showView(it[0]); } }));
@@ -364,8 +366,9 @@
     S.onJobChange = null;
     if (v === 'withdraw') buildStockView('withdraw');
     else if (v === 'add') buildStockView(S.addMode);
+    else if (v === 'dashboard') buildDashboard();
     else buildHistory();
-    if (v !== 'history' && S.matsState !== 'loading' && !S.sending) loadMaterials();
+    if (v !== 'history' && v !== 'dashboard' && S.matsState !== 'loading' && !S.sending) loadMaterials();
     window.scrollTo(0, 0);
   }
 
@@ -924,6 +927,211 @@
     matsWaiters = [];
     if (H.state === 'idle' || H.state === 'error') load();
     else drawList();
+  }
+
+  // ---------- dashboard ----------
+
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function svgEl(tag, attrs, kids) {
+    var n = document.createElementNS(SVG_NS, tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === 'text') n.textContent = attrs[k];
+      else n.setAttribute(k, String(attrs[k]));
+    });
+    (kids || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+
+  function niceMax(v) {
+    if (v <= 4) return 4;
+    var step = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+    var m = Math.ceil(v / step) * step;
+    return m < v * 1.1 ? m + step : m;
+  }
+
+  function changeText(c) {
+    if (c.pct === null) return 'ใหม่';
+    if (c.delta === 0) return 'เท่าเดิม';
+    return (c.delta > 0 ? '▲ ' : '▼ ') + Math.abs(c.pct) + '%';
+  }
+
+  function buildDashboard() {
+    var D = S.dash;
+    var now = new Date();
+    var body = h('div', { class: 'dash-body' });
+    mainEl.className = 'dash';
+    mainEl.appendChild(h('h2', { class: 'hist-title', text: 'สรุปการใช้วัสดุ' }));
+    mainEl.appendChild(body);
+
+    function allCats() {
+      var list = CATS.slice();
+      if (D.rows.some(function (r) { return r.category === CAT_OTHER.key; })) list.push(CAT_OTHER);
+      return list;
+    }
+
+    function chosen() {
+      return allCats().map(function (c) { return c.key; }).filter(function (k) { return D.cats.indexOf(k) !== -1; });
+    }
+
+    function monthChoices() {
+      var seen = {};
+      Dash.lastMonths(now, 12).concat(Dash.availableMonths(D.rows)).forEach(function (m) { seen[m] = true; });
+      return Object.keys(seen).sort().reverse();
+    }
+
+    function categoryCards() {
+      var months = Dash.lastMonths(now, 2);
+      var wrap = h('div', { class: 'catcards', role: 'group', 'aria-label': 'เลือกสายงานที่จะแสดง' });
+      allCats().forEach(function (c) {
+        var cmp = Dash.compareCategories(D.rows, [c.key], months[0], months[1])[0];
+        var on = D.cats.indexOf(c.key) !== -1;
+        wrap.appendChild(h('button', {
+          type: 'button', class: 'catcard ' + c.cls, 'aria-pressed': on ? 'true' : 'false',
+          onclick: function () {
+            var i = D.cats.indexOf(c.key);
+            if (i === -1) D.cats.push(c.key);
+            else if (D.cats.length > 1) D.cats.splice(i, 1);
+            draw();
+          }
+        }, [
+          h('span', { class: 'cc-name', text: c.label }),
+          h('span', { class: 'cc-num', text: String(cmp.b) }),
+          h('span', { class: 'cc-sub', text: 'ครั้งเดือนนี้ · ' + changeText(cmp) + ' จากเดือนก่อน' })
+        ]));
+      });
+      return wrap;
+    }
+
+    function chart() {
+      var months = Dash.lastMonths(now, D.range);
+      var cats = chosen();
+      var series = Dash.seriesByCategory(D.rows, cats, months);
+      var max = 0;
+      series.forEach(function (sr) { sr.values.forEach(function (v) { if (v > max) max = v; }); });
+      var top = niceMax(max);
+      var barW = 14, gap = 3, groupPad = 16;
+      var groupW = cats.length * barW + (cats.length - 1) * gap + groupPad * 2;
+      var left = 34, bottom = 28, topPad = 14, H = 250;
+      var W = Math.max(330, left + groupW * months.length + 8);
+      var plotH = H - bottom - topPad;
+      var kids = [];
+      for (var g = 0; g <= 4; g++) {
+        var y = topPad + plotH - (plotH * g) / 4;
+        kids.push(svgEl('line', { x1: left, x2: W - 4, y1: y, y2: y, class: g === 0 ? 'axis' : 'grid' }));
+        kids.push(svgEl('text', { x: left - 6, y: y + 4, class: 'ytick', 'text-anchor': 'end', text: String(Math.round((top * g) / 4 * 10) / 10) }));
+      }
+      months.forEach(function (m, mi) {
+        var gx = left + mi * groupW;
+        kids.push(svgEl('text', { x: gx + groupW / 2, y: H - 8, class: 'xtick', 'text-anchor': 'middle', text: Dash.monthLabel(m) }));
+        series.forEach(function (sr, si) {
+          var v = sr.values[mi];
+          var bh = (plotH * v) / top;
+          var x = gx + groupPad + si * (barW + gap);
+          var meta = catMeta(sr.category);
+          var title = svgEl('title', { text: meta.label + ' · ' + Dash.monthLabel(m) + ' · ' + v + ' ครั้ง' });
+          kids.push(svgEl('rect', { x: x, y: topPad + plotH - bh, width: barW, height: Math.max(bh, v > 0 ? 1 : 0), rx: 2, class: 'bar ' + meta.cls }, [title]));
+          if (v > 0 && cats.length <= 3) kids.push(svgEl('text', { x: x + barW / 2, y: topPad + plotH - bh - 4, class: 'vlabel', 'text-anchor': 'middle', text: String(v) }));
+        });
+      });
+      var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'กราฟแท่งจำนวนครั้งที่เบิกรายเดือน แยกตามสายงาน', style: 'min-width:' + W + 'px' }, kids);
+      var seg = h('div', { class: 'rangeseg', role: 'group', 'aria-label': 'ช่วงเวลา' }, [3, 6, 12].map(function (n) {
+        return h('button', { type: 'button', 'aria-pressed': D.range === n ? 'true' : 'false', text: n + ' เดือน', onclick: function () { D.range = n; draw(); } });
+      }));
+      var empty = max === 0;
+      return h('section', { class: 'panel' }, [
+        h('div', { class: 'panel-head' }, [
+          h('div', {}, [h('h3', { text: 'เทียบรายเดือน' }), h('p', { class: 'panel-sub', text: 'จำนวนครั้งที่เบิก (นับทุกรายการวัสดุในใบเบิก)' })]),
+          seg
+        ]),
+        empty ? h('p', { class: 'empty', text: 'ยังไม่มีการเบิกในช่วงนี้' }) : h('div', { class: 'chartwrap' }, [svg])
+      ]);
+    }
+
+    function compare() {
+      var choices = monthChoices();
+      function sel(label, value, onPick) {
+        var s2 = h('select', { 'aria-label': label });
+        choices.forEach(function (m) { s2.appendChild(h('option', { value: m, text: Dash.monthLabel(m), selected: m === value ? true : null })); });
+        s2.value = value;
+        s2.addEventListener('change', function () { onPick(s2.value); draw(); });
+        return h('label', { class: 'monthpick' }, [h('span', { text: label }), s2]);
+      }
+      var cats = chosen();
+      var cc = Dash.compareCategories(D.rows, cats, D.a, D.b);
+      var mats = Dash.compareMaterials(D.rows, cats, D.a, D.b).slice(0, 8);
+      var table = h('div', { class: 'cmp-table', role: 'table', 'aria-label': 'เทียบจำนวนครั้งที่เบิกรายสายงาน' }, [
+        h('div', { class: 'cmp-row head', role: 'row' }, [
+          h('span', { text: 'สายงาน' }), h('span', { class: 'num', text: Dash.monthLabel(D.a) }),
+          h('span', { class: 'num', text: Dash.monthLabel(D.b) }), h('span', { class: 'num', text: 'เปลี่ยน' })
+        ])
+      ].concat(cc.map(function (c) {
+        var meta = catMeta(c.category);
+        return h('div', { class: 'cmp-row ' + meta.cls, role: 'row' }, [
+          h('span', { class: 'cmp-cat' }, [h('i', { class: 'dot' }), meta.label]),
+          h('span', { class: 'num', text: String(c.a) }),
+          h('span', { class: 'num', text: String(c.b) }),
+          h('span', { class: 'num chg ' + (c.delta > 0 ? 'up' : c.delta < 0 ? 'down' : ''), text: changeText(c) })
+        ]);
+      })));
+      var list = h('div', { class: 'matlist' });
+      if (!mats.length) list.appendChild(h('p', { class: 'empty', text: 'สองเดือนนี้ยังไม่มีการเบิกในสายที่เลือก' }));
+      mats.forEach(function (m) {
+        var peak = Math.max(m.a, m.b) || 1;
+        list.appendChild(h('div', { class: 'mat ' + catMeta(m.category).cls }, [
+          h('div', { class: 'mat-name', text: m.name }),
+          h('div', { class: 'mat-bars' }, [
+            h('div', { class: 'mb' }, [h('span', { class: 'mb-label', text: Dash.monthLabel(D.a) }), h('span', { class: 'mb-track' }, [h('i', { class: 'mb-bar a', style: 'width:' + (m.a / peak) * 100 + '%' })]), h('span', { class: 'mb-val', text: fmtNum(m.a) })]),
+            h('div', { class: 'mb' }, [h('span', { class: 'mb-label', text: Dash.monthLabel(D.b) }), h('span', { class: 'mb-track' }, [h('i', { class: 'mb-bar b', style: 'width:' + (m.b / peak) * 100 + '%' })]), h('span', { class: 'mb-val', text: fmtNum(m.b) })])
+          ]),
+          h('div', { class: 'mat-unit', text: m.unit + (m.pct === null ? ' · ใหม่' : m.delta === 0 ? ' · เท่าเดิม' : ' · ' + (m.delta > 0 ? '▲ ' : '▼ ') + Math.abs(m.pct) + '%') })
+        ]));
+      });
+      return h('section', { class: 'panel' }, [
+        h('div', { class: 'panel-head' }, [
+          h('div', {}, [h('h3', { text: 'เทียบสองเดือน' }), h('p', { class: 'panel-sub', text: 'เลือกเดือนที่อยากเทียบกัน' })]),
+          h('div', { class: 'monthpicks' }, [
+            sel('เดือนแรก', D.a, function (v) { D.a = v; }),
+            h('button', { type: 'button', class: 'swap', 'aria-label': 'สลับเดือน', text: '⇄', onclick: function () { var t = D.a; D.a = D.b; D.b = t; draw(); } }),
+            sel('เดือนที่สอง', D.b, function (v) { D.b = v; })
+          ])
+        ]),
+        table,
+        h('h4', { class: 'sub-title', text: 'วัสดุที่เบิกมาก (จำนวนชิ้นตามหน่วยของวัสดุนั้น)' }),
+        list
+      ]);
+    }
+
+    function draw() {
+      clear(body);
+      if (D.state === 'loading') { body.appendChild(h('p', { class: 'empty', text: 'กำลังโหลดข้อมูลสรุป…' })); return; }
+      if (D.state === 'error') {
+        body.appendChild(h('div', { class: 'empty' }, [
+          h('p', { text: D.error || 'โหลดข้อมูลสรุปไม่ได้' }),
+          h('button', { class: 'btn ghost small', type: 'button', text: 'ลองใหม่', onclick: load })
+        ]));
+        return;
+      }
+      if (!D.cats) D.cats = CATS.map(function (c) { return c.key; });
+      if (!D.b) { var two = Dash.lastMonths(now, 2); D.a = two[0]; D.b = two[1]; }
+      body.appendChild(categoryCards());
+      body.appendChild(chart());
+      body.appendChild(compare());
+      if (D.skipped) body.appendChild(h('p', { class: 'result-count', text: 'ข้ามรายการที่อ่านวันที่หรือจำนวนไม่ได้ ' + D.skipped + ' แถว' }));
+    }
+
+    async function load() {
+      if (D.state !== 'ready') { D.state = 'loading'; draw(); }
+      var r = await call('usage');
+      if (!S.session || S.view !== 'dashboard') return;
+      if (r.ok) { D.rows = r.data.rows; D.skipped = r.data.skipped || 0; D.state = 'ready'; }
+      else if (D.state !== 'ready') { D.state = 'error'; D.error = errorText(r); }
+      draw();
+    }
+
+    matsWaiters = [];
+    if (D.state === 'ready') draw();
+    load();
   }
 
   // ---------- boot ----------

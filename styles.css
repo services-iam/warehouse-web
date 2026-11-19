@@ -350,3 +350,72 @@ main.has-bar { padding-bottom: calc(var(--nav-h) + 96px + env(safe-area-inset-bo
 @media (min-width: 900px) and (prefers-reduced-motion: reduce) {
   .sheet { animation: none; }
 }
+
+/* ---------- dashboard ---------- */
+
+.catcards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.catcard {
+  display: grid; gap: 0; text-align: left; padding: 10px 12px 10px 12px; min-height: 92px;
+  background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--cat, var(--c-xx)); border-radius: 10px;
+}
+.catcard[aria-pressed="false"] { background: transparent; border-style: dashed; border-left-style: solid; color: var(--muted); }
+.catcard[aria-pressed="false"] .cc-num { color: var(--muted); }
+.cc-name { font-weight: 600; }
+.cc-num { font-size: 30px; line-height: 1.15; font-weight: 600; }
+.cc-sub { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; margin-bottom: 10px; }
+.panel h3 { margin: 0; font-size: 18px; line-height: 1.3; }
+.panel-sub { margin: 0; font-size: 13.5px; color: var(--muted); }
+.sub-title { margin: 18px 0 8px; font-size: 15px; }
+
+.rangeseg { display: inline-flex; background: #D9DEE3; border-radius: 10px; padding: 3px; gap: 3px; }
+.rangeseg button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; font-weight: 500; }
+.rangeseg button[aria-pressed="true"] { background: var(--surface); font-weight: 600; box-shadow: 0 1px 2px rgba(23, 32, 43, .18); }
+
+.chartwrap { overflow-x: auto; margin: 0 -4px; padding-bottom: 4px; }
+.chartwrap svg { display: block; width: 100%; height: auto; }
+.chartwrap .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+.chartwrap .axis { stroke: #8E98A4; stroke-width: 1; }
+.chartwrap .ytick, .chartwrap .xtick { fill: var(--muted); font-size: 11px; font-family: var(--font); }
+.chartwrap .vlabel { fill: var(--ink); font-size: 10.5px; font-weight: 600; font-family: var(--font); }
+.chartwrap .bar { fill: var(--cat, var(--c-xx)); }
+
+.monthpicks { display: flex; align-items: flex-end; gap: 6px; }
+.monthpick { display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
+.monthpick select { min-height: 44px; padding: 0 8px; border: 1px solid #8E98A4; border-radius: 8px; background: var(--surface); font-size: 16px; }
+.swap { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 18px; }
+
+.cmp-table { display: grid; gap: 0; margin-top: 4px; }
+.cmp-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr) minmax(0, .8fr) minmax(0, 1.2fr); align-items: center; gap: 6px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.cmp-row.head { font-size: 13px; color: var(--muted); }
+.cmp-row:last-child { border-bottom: 0; }
+.cmp-cat { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.cmp-cat .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--cat); flex: none; }
+.cmp-row .num { text-align: right; font-weight: 600; }
+.cmp-row.head .num { font-weight: 500; }
+.cmp-row .chg { white-space: nowrap; }
+.chg.up { color: var(--ink); }
+.chg.down { color: var(--muted); }
+
+.matlist { display: grid; gap: 10px; }
+.mat { padding: 8px 10px 8px 10px; border-left: 5px solid var(--cat, var(--c-xx)); background: #F6F7F8; border-radius: 6px; }
+.mat-name { font-weight: 500; line-height: 1.35; }
+.mat-unit { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.mat-bars { display: grid; gap: 3px; margin-top: 4px; }
+.mb { display: grid; grid-template-columns: 46px minmax(0, 1fr) 52px; align-items: center; gap: 8px; font-size: 13px; }
+.mb-label { color: var(--muted); }
+.mb-track { height: 10px; background: #E3E7EB; border-radius: 5px; overflow: hidden; }
+.mb-bar { display: block; height: 100%; border-radius: 5px; }
+.mb-bar.a { background: #9AA5B1; }
+.mb-bar.b { background: var(--cat, var(--c-xx)); }
+.mb-val { text-align: right; font-weight: 600; }
+
+@media (min-width: 900px) {
+  main.dash { max-width: 1120px; }
+  .catcards { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .dash-body { display: block; }
+  .panel { padding: 18px 20px; }
+  .matlist { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
