@@ -250,6 +250,13 @@ main.has-bar { padding-bottom: calc(var(--nav-h) + 96px + env(safe-area-inset-bo
 
 /* ---------- history ---------- */
 
+.typetabs { display: flex; gap: 0; margin: 0 0 12px; border-bottom: 2px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.typetabs::-webkit-scrollbar { display: none; }
+.typetabs button { flex: 1 0 auto; min-height: 48px; padding: 0 14px; background: none; border: 0; border-bottom: 4px solid transparent; margin-bottom: -2px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.typetabs button[aria-pressed="true"] { border-bottom-color: var(--ink); color: var(--ink); font-weight: 600; }
+.hist-title { margin: 0 0 10px; font-size: 19px; line-height: 1.3; }
+
+
 .entry { padding: 10px 14px 10px 12px; border-left: 6px solid var(--cat, var(--c-xx)); border-bottom: 1px solid var(--line); }
 .entry:last-child { border-bottom: 0; }
 .entry .top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }

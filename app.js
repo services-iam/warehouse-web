@@ -179,7 +179,7 @@
     addMode: 'transfer',
     carts: { withdraw: Cart.createCart(), transfer: Cart.createCart(), purchase: Cart.createCart() },
     prices: {},
-    hist: { items: [], state: 'idle', scope: 'mine', cat: 'all', q: '' },
+    hist: { items: [], state: 'idle', scope: 'mine', kind: 'เบิก', cat: 'all', q: '' },
     sending: false,
     onJobChange: null
   };
@@ -835,10 +835,15 @@
 
   var HISTORY_LABEL = { 'เบิก': 'เบิกใช้งาน', 'เพิ่ม': 'โอนเข้าคลังเบิก', 'รับเข้า': 'ซื้อเข้าคลังใหญ่' };
 
+  var HISTORY_KINDS = ['เบิก', 'เพิ่ม', 'รับเข้า'];
+
   function buildHistory() {
     var H = S.hist;
     var listEl = h('div', { class: 'items history' });
     var countEl = h('p', { class: 'result-count' });
+    var tabsEl = h('div', { class: 'typetabs', role: 'group', 'aria-label': 'ประเภทรายการในประวัติ' });
+    var titleEl = h('h2', { class: 'hist-title' });
+    if (!can('add')) H.kind = 'เบิก';
 
     if (can('add')) {
       mainEl.appendChild(h('div', { class: 'seg', role: 'group', 'aria-label': 'ขอบเขตประวัติ' }, [
@@ -848,12 +853,28 @@
     }
     var search = h('input', { class: 'search', type: 'search', placeholder: 'ค้นหาวัสดุ ผู้เบิก หรืองาน', 'aria-label': 'ค้นหาประวัติ', autocomplete: 'off', value: H.q });
     search.addEventListener('input', function () { H.q = search.value; drawList(); });
+    if (can('add')) mainEl.appendChild(tabsEl);
+    mainEl.appendChild(titleEl);
     mainEl.appendChild(chipRow(function () { return H.cat; }, function (k) { H.cat = k; drawList(); }, true));
     mainEl.appendChild(search);
     mainEl.appendChild(countEl);
     mainEl.appendChild(listEl);
 
+    function drawTabs() {
+      clear(tabsEl);
+      HISTORY_KINDS.forEach(function (k) {
+        var n = H.items.filter(function (e) { return e.sheet === k; }).length;
+        tabsEl.appendChild(h('button', {
+          type: 'button', 'aria-pressed': H.kind === k ? 'true' : 'false',
+          text: HISTORY_LABEL[k] + (H.state === 'ready' ? ' ' + n : ''),
+          onclick: function () { H.kind = k; drawTabs(); drawList(); }
+        }));
+      });
+    }
+
     function drawList() {
+      titleEl.textContent = HISTORY_LABEL[H.kind];
+      drawTabs();
       clear(listEl);
       if (H.state === 'loading') { listEl.appendChild(h('p', { class: 'empty', text: 'กำลังโหลดประวัติ…' })); countEl.textContent = ''; return; }
       if (H.state === 'error') {
@@ -866,6 +887,7 @@
       }
       var q = H.q.trim().toLowerCase();
       var shown = H.items.filter(function (e) {
+        if (e.sheet !== H.kind) return false;
         if (H.cat !== 'all' && e.category !== H.cat) return false;
         if (!q) return true;
         return (e.name + ' ' + e.user + ' ' + e.job + ' ' + e.code).toLowerCase().indexOf(q) !== -1;
