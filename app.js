@@ -265,8 +265,7 @@
     var pin = h('input', { id: 'f-pin', name: 'pin', type: 'password', inputmode: 'numeric', autocomplete: 'current-password', required: true });
     var btn = h('button', { class: 'btn block', type: 'submit', text: 'เข้าสู่ระบบ' });
     var form = h('form', { class: 'login', novalidate: true }, [
-      h('div', { class: 'mark', 'aria-hidden': 'true' }, [h('i'), h('i'), h('i'), h('i'), h('i')]),
-      h('h1', { text: 'คลังวัสดุงานช่าง' }),
+      h('h2', { text: 'เข้าสู่ระบบ' }),
       h('p', { text: 'สำหรับช่างที่ได้รับสิทธิ์ ขอ PIN ได้จากผู้ดูแลคลัง' }),
       DEMO ? h('p', { class: 'notice', text: 'โหมดทดลอง: ใช้ชื่อ admin หรือ ช่าง กับ PIN 123456 ข้อมูลเป็นตัวอย่าง ไม่ถูกบันทึกลงชีตจริง' }) : null,
       err,
@@ -298,7 +297,14 @@
         pin.focus();
       }
     });
-    root.appendChild(form);
+    root.appendChild(h('div', { class: 'login-wrap' }, [
+      h('header', { class: 'login-brand' }, [
+        h('div', { class: 'bands', 'aria-hidden': 'true' }, [h('i'), h('i'), h('i'), h('i'), h('i')]),
+        h('h1', { text: 'คลังวัสดุ งานช่างโยธา' }),
+        h('p', { text: 'เบิกวัสดุตามงานแจ้งซ่อม ตัดสต็อกทันที รู้ว่าของไปใช้ที่ไหน' })
+      ]),
+      form
+    ]));
     user.focus();
   }
 
@@ -320,6 +326,18 @@
 
   function can(perm) { return !!(S.session && S.session.permissions && S.session.permissions[perm]); }
 
+  // Simple line icons for the menu, drawn as SVG paths.
+  var NAV_ICONS = {
+    withdraw: ['M4 8l8-4 8 4v8l-8 4-8-4z', 'M4 8l8 4 8-4', 'M12 12v8'],
+    add: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M12 8v8', 'M8 12h8'],
+    dashboard: ['M5 20v-8', 'M12 20V5', 'M19 20v-5'],
+    history: ['M12 21a9 9 0 1 0-9-9', 'M3 4v5h5', 'M12 7v5l3 2']
+  };
+
+  function navIcon(key) {
+    return svgEl('svg', { viewBox: '0 0 24 24', focusable: 'false' }, (NAV_ICONS[key] || []).map(function (d) { return svgEl('path', { d: d }); }));
+  }
+
   function renderShell() {
     clear(root);
     var nav = h('nav', { class: 'bottom-nav', 'aria-label': 'เมนูหลัก' });
@@ -329,7 +347,10 @@
     items.push(['dashboard', 'สรุป']);
     items.push(['history', 'ประวัติ']);
     items.forEach(function (it) {
-      nav.appendChild(h('button', { type: 'button', 'data-view': it[0], text: it[1], onclick: function () { showView(it[0]); } }));
+      nav.appendChild(h('button', { type: 'button', 'data-view': it[0], onclick: function () { showView(it[0]); } }, [
+        h('span', { class: 'ico', 'aria-hidden': 'true' }, [navIcon(it[0])]),
+        h('span', { class: 'lbl', text: it[1] })
+      ]));
     });
     mainEl = h('main', { id: 'view' });
     var shell = h('div', { class: 'shell' }, [
@@ -641,7 +662,7 @@
       if (out) {
         ctl.appendChild(h('span', { class: 'hint', text: kind === 'transfer' ? 'คลังใหญ่หมด' : '' }));
       } else if (!inCart) {
-        ctl.appendChild(h('button', { class: 'btn ghost small', type: 'button', 'aria-label': KIND[kind].verb + ' ' + m.name, text: KIND[kind].verb, onclick: function () {
+        ctl.appendChild(h('button', { class: 'btn small add', type: 'button', 'aria-label': KIND[kind].verb + ' ' + m.name, text: KIND[kind].verb, onclick: function () {
           cart.add(item, 1);
           drawCtl();
           onBar();
